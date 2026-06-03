@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Destinos GACE 2024 por provincia</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:inherit;background:transparent}
+.adj-mapa-destinos{max-width:1100px;margin:0 auto;padding:0 0 32px}
+
+.adj-mapa-search{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.adj-mapa-search label{font-size:.85rem;font-weight:600;color:#1a3a5c;white-space:nowrap}
+.adj-mapa-search select{flex:1;min-width:200px;max-width:400px;font-family:inherit;font-size:.85rem;padding:10px 14px;border:2px solid #e5e2db;border-radius:8px;background:#fff;color:#2c2c2c;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;transition:border-color .2s}
+.adj-mapa-search select:focus{outline:none;border-color:#1a3a5c}
+
+#adj-map-destinos{width:100%;height:520px;border-radius:10px;box-shadow:0 4px 20px rgba(26,58,92,.12);z-index:1}
+@media(max-width:600px){#adj-map-destinos{height:400px}}
+
+/* leyenda */
+.adj-leyenda{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px;font-size:.78rem;color:#555;align-items:center}
+.adj-leyenda-titulo{font-weight:600;color:#1a3a5c;margin-right:4px}
+.adj-leyenda-item{display:flex;align-items:center;gap:5px}
+.adj-leyenda-circulo{border-radius:50%;border:2px solid rgba(255,255,255,.7);display:inline-block;flex-shrink:0}
+
+/* popup */
+.leaflet-popup-content-wrapper{border-radius:10px!important;box-shadow:0 8px 30px rgba(0,0,0,.15)!important;padding:0!important;overflow:hidden}
+.leaflet-popup-content{margin:0!important;font-family:inherit!important;min-width:200px}
+.leaflet-popup-tip{box-shadow:0 4px 10px rgba(0,0,0,.1)!important}
+.popup-destino-header{background:#1a3a5c;color:#fff;padding:10px 14px}
+.popup-destino-header strong{font-size:.95rem;display:block}
+.popup-destino-header span{font-size:.78rem;opacity:.8}
+.popup-destino-body{padding:10px 14px;font-size:.82rem;color:#444;line-height:1.5}
+.popup-destino-num{font-size:1.6rem;font-weight:700;color:#1a3a5c;display:block;line-height:1}
+.popup-destino-label{font-size:.78rem;color:#888}
+.popup-destino-pct{display:inline-block;margin-top:6px;background:#f0f4f8;border-radius:4px;padding:3px 8px;font-size:.76rem;color:#2d5f8a;font-weight:600}
+</style>
+</head>
+<body>
+<div class="adj-mapa-destinos">
+
+  <div class="adj-mapa-search">
+    <label for="adj-prov-select">📍 Buscar provincia:</label>
+    <select id="adj-prov-select">
+      <option value="">-- Selecciona una provincia --</option>
+    </select>
+  </div>
+
+  <div id="adj-map-destinos"></div>
+
+  <div class="adj-leyenda">
+    <span class="adj-leyenda-titulo">Nº de plazas:</span>
+    <span class="adj-leyenda-item"><span class="adj-leyenda-circulo" style="width:10px;height:10px;background:#93c5fd"></span> 1–10</span>
+    <span class="adj-leyenda-item"><span class="adj-leyenda-circulo" style="width:14px;height:14px;background:#3b82f6"></span> 11–25</span>
+    <span class="adj-leyenda-item"><span class="adj-leyenda-circulo" style="width:18px;height:18px;background:#1d4ed8"></span> 26–50</span>
+    <span class="adj-leyenda-item"><span class="adj-leyenda-circulo" style="width:22px;height:22px;background:#1e3a8a"></span> 51–200</span>
+    <span class="adj-leyenda-item"><span class="adj-leyenda-circulo" style="width:30px;height:30px;background:#e8a838"></span> +200</span>
+  </div>
+
+</div>
+
+<script>
+const provincias = [
+  {name:"A Coruña",        lat:43.3623, lng:-8.4115,  plazas:11},
+  {name:"Albacete",        lat:38.9942, lng:-1.8585,  plazas:5},
+  {name:"Alicante",        lat:38.3453, lng:-0.4831,  plazas:26},
+  {name:"Almería",         lat:36.8340, lng:-2.4637,  plazas:13},
+  {name:"Álava",           lat:42.8467, lng:-2.6726,  plazas:9},
+  {name:"Asturias",        lat:43.3614, lng:-5.8593,  plazas:14},
+  {name:"Ávila",           lat:40.6567, lng:-4.6814,  plazas:5},
+  {name:"Badajoz",         lat:38.8794, lng:-6.9707,  plazas:19},
+  {name:"Barcelona",       lat:41.3888, lng:2.1590,   plazas:130},
+  {name:"Bizkaia",         lat:43.2630, lng:-2.9350,  plazas:21},
+  {name:"Burgos",          lat:42.3440, lng:-3.6969,  plazas:5},
+  {name:"Cáceres",         lat:39.4753, lng:-6.3724,  plazas:13},
+  {name:"Cádiz",           lat:36.5271, lng:-6.2886,  plazas:22},
+  {name:"Cantabria",       lat:43.1828, lng:-3.9878,  plazas:17},
+  {name:"Castellón",       lat:39.9864, lng:-0.0513,  plazas:18},
+  {name:"Ceuta",           lat:35.8893, lng:-5.3213,  plazas:13},
+  {name:"Ciudad Real",     lat:38.9848, lng:-3.9274,  plazas:18},
+  {name:"Córdoba",         lat:37.8882, lng:-4.7794,  plazas:11},
+  {name:"Cuenca",          lat:40.0704, lng:-2.1374,  plazas:5},
+  {name:"Gipuzkoa",        lat:43.1126, lng:-2.3126,  plazas:10},
+  {name:"Girona",          lat:41.9794, lng:2.8214,   plazas:26},
+  {name:"Granada",         lat:37.1773, lng:-3.5986,  plazas:11},
+  {name:"Guadalajara",     lat:40.6318, lng:-3.1661,  plazas:14},
+  {name:"Huelva",          lat:37.2614, lng:-6.9447,  plazas:21},
+  {name:"Huesca",          lat:42.1401, lng:-0.4089,  plazas:6},
+  {name:"Illes Balears",   lat:39.6350, lng:2.6502,   plazas:38},
+  {name:"Jaén",            lat:37.7796, lng:-3.7849,  plazas:10},
+  {name:"La Rioja",        lat:42.4650, lng:-2.4500,  plazas:12},
+  {name:"Las Palmas",      lat:28.0997, lng:-15.4134, plazas:17},
+  {name:"León",            lat:42.5987, lng:-5.5671,  plazas:7},
+  {name:"Lleida",          lat:41.6176, lng:0.6200,   plazas:13},
+  {name:"Lugo",            lat:43.0097, lng:-7.5567,  plazas:3},
+  {name:"Madrid",          lat:40.4168, lng:-3.7038,  plazas:1673},
+  {name:"Málaga",          lat:36.7213, lng:-4.4214,  plazas:18},
+  {name:"Melilla",         lat:35.2923, lng:-2.9381,  plazas:12},
+  {name:"Murcia",          lat:37.9922, lng:-1.1307,  plazas:44},
+  {name:"Navarra",         lat:42.6954, lng:-1.6761,  plazas:22},
+  {name:"Ourense",         lat:42.3359, lng:-7.8639,  plazas:5},
+  {name:"Palencia",        lat:42.0097, lng:-4.5288,  plazas:6},
+  {name:"Pontevedra",      lat:42.4310, lng:-8.6444,  plazas:8},
+  {name:"Salamanca",       lat:40.9701, lng:-5.6635,  plazas:9},
+  {name:"S.C. de Tenerife",lat:28.4870, lng:-16.3134, plazas:26},
+  {name:"Segovia",         lat:40.9429, lng:-4.1088,  plazas:6},
+  {name:"Sevilla",         lat:37.3891, lng:-5.9845,  plazas:47},
+  {name:"Soria",           lat:41.7640, lng:-2.4648,  plazas:7},
+  {name:"Tarragona",       lat:41.1189, lng:1.2445,   plazas:18},
+  {name:"Teruel",          lat:40.3456, lng:-1.1065,  plazas:4},
+  {name:"Toledo",          lat:39.8628, lng:-4.0273,  plazas:23},
+  {name:"Valencia",        lat:39.4699, lng:-0.3763,  plazas:31},
+  {name:"Valladolid",      lat:41.6523, lng:-4.7245,  plazas:25},
+  {name:"Zamora",          lat:41.5034, lng:-5.7446,  plazas:6},
+  {name:"Zaragoza",        lat:41.6488, lng:-0.8891,  plazas:28}
+];
+
+const TOTAL = 2581;
+
+function getColor(p) {
+  if (p > 200)  return '#e8a838';
+  if (p > 50)   return '#1e3a8a';
+  if (p > 25)   return '#1d4ed8';
+  if (p > 10)   return '#3b82f6';
+  return '#93c5fd';
+}
+
+function getRadius(p) {
+  if (p > 1000) return 28;
+  if (p > 100)  return 18;
+  if (p > 40)   return 13;
+  if (p > 20)   return 10;
+  if (p > 10)   return 8;
+  return 6;
+}
+
+const map = L.map('adj-map-destinos', {
+  center: [39.5, -3.0],
+  zoom: 6,
+  minZoom: 5,
+  maxZoom: 14,
+  scrollWheelZoom: true
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+const select = document.getElementById('adj-prov-select');
+const markers = [];
+
+provincias.forEach((prov, idx) => {
+  const pct = ((prov.plazas / TOTAL) * 100).toFixed(1);
+
+  const circle = L.circleMarker([prov.lat, prov.lng], {
+    radius: getRadius(prov.plazas),
+    fillColor: getColor(prov.plazas),
+    color: '#fff',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.85
+  }).addTo(map);
+
+  const popupContent = `
+    <div class="popup-destino-header">
+      <strong>${prov.name}</strong>
+      <span>Oferta de destinos GACE 2024</span>
+    </div>
+    <div class="popup-destino-body">
+      <span class="popup-destino-num">${prov.plazas.toLocaleString('es-ES')}</span>
+      <span class="popup-destino-label">plazas ofertadas</span>
+      <span class="popup-destino-pct">${pct}% del total nacional</span>
+    </div>`;
+
+  circle.bindPopup(popupContent, { maxWidth: 260 });
+
+  circle.on('mouseover', function() { this.openPopup(); });
+
+  markers.push(circle);
+
+  const opt = document.createElement('option');
+  opt.value = idx;
+  opt.textContent = `${prov.name} (${prov.plazas} plazas)`;
+  select.appendChild(opt);
+});
+
+select.addEventListener('change', function() {
+  if (this.value === '') return;
+  const idx = parseInt(this.value);
+  const prov = provincias[idx];
+  map.setView([prov.lat, prov.lng], 9, { animate: true });
+  markers[idx].openPopup();
+});
+</script>
+</body>
+</html>
